@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>micro:bit IoT Dashboard Pro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg: #0b1020;
+      --bg-2: #0f1730;
+      --panel: rgba(15, 20, 40, 0.86);
+      --panel-2: rgba(19, 26, 51, 0.92);
+      --border: rgba(255,255,255,.08);
+      --border-strong: rgba(168,85,247,.28);
+      --text: #ecf2ff;
+      --muted: #94a3b8;
+      --green: #a855f7;
+      --red: #fb7185;
+      --yellow: #f59e0b;
+      --shadow: 0 18px 50px rgba(2, 6, 23, .38);
+      --radius: 24px;
+      --sidebar-w: 260px;
+    }
+    * { box-sizing: border-box; }
+    
+    /* FIX SCROLLING ROOT */
+    html, body { 
+        height: 100vh; 
+        margin: 0; 
+        padding: 0; 
+        overflow: hidden; /* Matikan scroll utama layar */
+        font-family: 'Inter', sans-serif; 
+        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%);
+        color: var(--text);
+    }
+    
+    a, button, input, select, textarea { font: inherit; }
+    button, input, select, textarea { outline: none; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .app {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr 280px;
+      height: 100vh;
+      overflow: hidden; /* Mengunci total aplikasi di ukuran layar */
+    }
+
+    .sidebar {
+      background: linear-gradient(180deg, rgba(9,13,26,.98), rgba(12,16,33,.94));
+      border-right: 1px solid rgba(255,255,255,.06);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      box-shadow: inset -1px 0 0 rgba(255,255,255,.02);
+      height: 100%;
+    }
+
+    .brand {
+      display:flex; align-items:center; gap:12px; padding:18px 18px 14px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .brand-badge {
+      width:40px; height:40px; border-radius:14px; display:grid; place-items:center;
+      background: linear-gradient(135deg, rgba(168,85,247,.35), rgba(59,130,246,.22));
+      border: 1px solid rgba(168,85,247,.35); color: #f5f3ff; flex: 0 0 auto;
+      box-shadow: 0 0 0 6px rgba(168,85,247,.08); font-family: 'Orbitron', monospace; font-weight: bold;
+    }
+    .brand-title { font-weight: 800; letter-spacing: .2px; color: #f5f3ff; font-size: 1.05rem; }
+
+    .sidebar-scroll { padding: 14px 12px 16px; overflow-y: auto; flex: 1; min-height: 0; }
+
+    .search {
+      display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius: 16px;
+      background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06);
+      color: var(--muted); margin-bottom: 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    .search input { background:transparent; border:0; color:var(--text); width:100%; padding: 0; }
+    .search input::placeholder { color: #94a3b8; }
+
+    .section-label { color: var(--muted); font-size: 11px; letter-spacing: 1.15px; margin: 14px 10px 10px; text-transform: uppercase; }
+
+    .nav-item {
+      width:100%; border:0; color:var(--text); background:transparent; padding:12px 14px;
+      border-radius:16px; text-align:left; display:flex; align-items:center; gap:12px;
+      cursor:pointer; transition: .2s ease; margin-bottom: 6px; position: relative; overflow: hidden;
+    }
+    .nav-item:hover { background: rgba(255,255,255,.05); }
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(168,85,247,1), rgba(139,92,246,.88));
+      color:#fff; font-weight:700; box-shadow: 0 12px 24px rgba(168,85,247,.22);
+    }
+    .nav-item.active::after {
+      content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,.16), transparent 48%); pointer-events: none;
+    }
+    .nav-icon { width:18px; height:18px; display:inline-grid; place-items:center; flex:0 0 auto; opacity: .95; font-family: monospace;}
+
+    .sidebar-footer {
+      padding:14px 16px 18px; border-top:1px solid rgba(255,255,255,.06); display:flex;
+      align-items:center; gap:12px; background: linear-gradient(180deg, transparent, rgba(255,255,255,.01));
+    }
+    
+    .avatar {
+      width:38px; height:38px; border-radius: 50%;
+      background: linear-gradient(135deg, rgba(168,85,247,1), rgba(236,72,153,.95));
+      color:#fff; display:grid; place-items:center; font-weight:700; flex:0 0 auto; box-shadow: 0 10px 24px rgba(168,85,247,.24);
+    }
+    .footer-meta { min-width:0; }
+    .footer-meta .name { font-size:13px; font-weight:700; }
+    .footer-meta .sub { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* AREA PANEL TENGAH (Mencegah melar berlebih) */
+    .main {
+      min-width:0; 
+      display:flex; 
+      flex-direction:column; 
+      border-right:1px solid rgba(255,255,255,.06);
+      background: linear-gradient(180deg, rgba(9,13,26,.34), rgba(9,13,26,.12));
+      height: 100%;
+      overflow: hidden; /* PENTING: Mengunci agar grid tidak jebol ke bawah */
+    }
+
+    .topbar {
+      height:72px; display:flex; align-items:center; justify-content:space-between; gap: 18px;
+      padding: 0 20px; border-bottom:1px solid rgba(255,255,255,.06); color:var(--muted);
+      font-size:12px; backdrop-filter: blur(16px); background: rgba(8, 12, 24, .44); flex-shrink: 0;
+    }
+    .crumbs { display:flex; align-items:center; gap:8px; min-width: 0; }
+    .crumbs strong { color:var(--text); }
+    .top-right { display:flex; align-items:center; gap:12px; }
+    .top-right span:last-child {
+      width: 38px; height: 38px; border-radius: 50%; display:grid; place-items:center;
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06);
+    }
+
+    /* AREA SCROLL KONTEN INTERNAL */
+    .content { 
+        flex: 1; 
+        min-height: 0; /* PENTING: Memaksa area ini patuh pada batasan flexbox */
+        overflow-y: auto; 
+        padding: 22px 20px 40px; 
+    }
+
+    .page { display:none; animation: fadeIn .18s ease; }
+    .page.active { display:block; }
+    @keyframes fadeIn { from { opacity:.4; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+    .grid { display:grid; grid-template-columns:repeat(12, 1fr); gap:18px; align-items:start; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow:hidden; position: relative; backdrop-filter: blur(18px);
+    }
+    .card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; border: 1px solid rgba(255,255,255,.03); pointer-events: none; }
+    .card.pad { padding:18px; }
+
+    .card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .card-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #f8fafc; }
+    .card-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+    .badge-icon {
+      width:42px; height:42px; border-radius: 16px; display:grid; place-items:center; font-family: monospace; font-size: 20px;
+      background: rgba(168,85,247,.14); color: #f5f3ff; flex:0 0 auto; border: 1px solid rgba(168,85,247,.22);
+    }
+
+    .stat { display:flex; align-items:flex-end; justify-content:space-between; min-height:60px; }
+    .stat-value { font-size:30px; font-weight:800; letter-spacing:-.7px; line-height:1; margin-top:10px; color:#fff; font-family: 'Orbitron', monospace; }
+    .stat-label { font-size:12px; color:var(--muted); margin-top:10px; }
+
+    .overview-card { grid-column:span 3; padding:14px; display:flex; flex-direction:column; justify-content:space-between; }
+    .wide-card { grid-column:span 6; }
+    .mid-card { grid-column:span 4; }
+
+    .mini-chart-box {
+      height:108px; border-radius:18px;
+      background: linear-gradient(180deg, rgba(15,23,42,.6), rgba(15,23,42,.35));
+      border: 1px solid rgba(255,255,255,.04); position:relative; overflow:hidden; margin-top:12px;
+    }
+    .mini-chart-box canvas { width:100%; height:100%; display:block; }
+
+    .btn {
+      border:1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); color:var(--text);
+      padding:10px 14px; border-radius:14px; cursor:pointer; transition:.18s ease; font-weight:600;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 6px 20px rgba(2,6,23,.16);
+    }
+    .btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.06); }
+    .btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+    .btn.green {
+      background: linear-gradient(135deg, rgba(168,85,247,1), rgba(139,92,246,.95));
+      color:#fff; border-color: rgba(168,85,247,.3); box-shadow: 0 12px 28px rgba(168,85,247,.22);
+    }
+    .btn.green:hover { filter: brightness(1.04); }
+    .btn.ghost:hover { background: rgba(255,255,255,.06); }
+    .btn.red { background: rgba(251,113,133,.13); color:#fecdd3; border-color:rgba(251,113,133,.22); }
+
+    .status-chip {
+      font-size:12px; padding:6px 10px; border-radius:999px; background: rgba(255,255,255,.05);
+      color: var(--muted); border:1px solid rgba(255,255,255,.07); white-space:nowrap;
+    }
+    .status-chip.ok { background: rgba(168,85,247,.14); color: #e9d5ff; border-color: rgba(168,85,247,.25); }
+    .status-chip.bad { background: rgba(251,113,133,.14); color: #fecdd3; border-color: rgba(251,113,133,.22); }
+    .status-chip.warn { background: rgba(245,158,11,.14); color: #fde68a; border-color: rgba(245,158,11,.22); }
+
+    .two-col { display:grid; grid-template-columns:1.3fr .9fr; gap:18px; }
+    .stack { display:grid; gap:18px; }
+    .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .muted { color:var(--muted); }
+    .small { font-size:12px; }
+
+    .input, .select, .textarea {
+      width:100%; background: rgba(255,255,255,.03); border:1px solid rgba(168,85,247,.24);
+      color: var(--text); padding:10px 12px; border-radius:14px; transition:.18s ease; font-family: inherit;
+    }
+    .input:focus, .select:focus, .textarea:focus {
+      border-color: rgba(168,85,247,.9); box-shadow: 0 0 0 4px rgba(168,85,247,.12); background: rgba(255,255,255,.04);
+    }
+    .input::placeholder { color: rgba(148,163,184,.82); }
+    .textarea { min-height:176px; resize:vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .select { appearance:none; }
+    .select option { background: #12182b; color: #e2e8f0; }
+
+    .preview {
+      margin-top:12px; padding:14px; border-radius:16px; background: rgba(15, 23, 42, .52);
+      border:1px solid rgba(168,85,247,.18); color: #e2e8f0; white-space:pre-wrap;
+      overflow:auto; max-height:220px; font-size:12px; font-family: monospace;
+    }
+
+    .device-mini {
+      display:grid; gap:8px; padding:14px; border-radius:18px; border:1px solid rgba(255,255,255,.07);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+    }
+    .device-mini .big { font-size:28px; font-weight:800; line-height:1; font-family: 'Orbitron', monospace;}
+    .device-mini .sub { color:var(--muted); font-size:12px; }
+
+    .activity-list { display:grid; gap:10px; }
+    .activity {
+      padding:12px; border-radius:14px; background: rgba(15, 23, 42, .58);
+      border:1px solid rgba(255,255,255,.06); color:var(--text); font-size:13px;
+    }
+    .activity .time { color:var(--muted); font-size:11px; margin-top:4px; }
+
+    .page-title { font-size:28px; font-weight:800; margin:2px 0 18px; letter-spacing:-.5px; color:#f8fafc; }
+
+    .widget-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; opacity: 0; transition: opacity 0.3s; z-index: 10; }
+    .card:hover .widget-actions { opacity: 1; }
+    .btn-icon { padding: 4px; border: none; background: transparent; font-size: 14px; cursor:pointer; }
+    .btn-icon:hover { transform: scale(1.1); }
+
+    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin-top: 15px; }
+    input[type=range]:focus { outline: none; }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%; height: 6px; cursor: pointer; background: rgba(168,85,247,.22);
+      border-radius: 999px; border: 1px solid rgba(168,85,247,.26);
+    }
+    input[type=range]::-webkit-slider-thumb {
+      height: 18px; width: 12px; border-radius: 4px; background: var(--green);
+      cursor: pointer; -webkit-appearance: none; margin-top: -6px; box-shadow: 0 0 12px rgba(168,85,247,.55);
+    }
+
+    .subgrid-2 { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .page-nav-row { display:flex; align-items:center; gap:10px; }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.28); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(168,85,247,.5); }
+    ::-webkit-scrollbar-track { background: transparent; }
+
+    /* RESPONSIVE LAYOUT - Kembali normal jika di layar kecil */
+    @media (max-width: 1200px) {
+      html, body { overflow-y: auto; height: auto; }
+      .app { grid-template-columns:220px 1fr; grid-template-rows:auto auto; height: auto; overflow: visible;}
+      .main { height: auto; overflow: visible;}
+      .content { min-height: 100vh; overflow: visible; }
+      .sidebar { height: auto; }
+      .rightbar { grid-column:1 / -1; height: auto !important; overflow: visible !important;}
+    }
+    @media (max-width: 900px) {
+      .app { grid-template-columns:1fr; }
+      .sidebar { position:sticky; top:0; z-index:50; }
+      .main { border-right:0; }
+      .topbar { position:sticky; top:0; z-index:20; }
+      .rightbar { display:none; }
+      .two-col, .subgrid-2 { grid-template-columns:1fr; }
+      .grid { grid-template-columns:1fr; }
+      .overview-card, .wide-card, .mid-card { grid-column:span 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-badge">⚙</div><div class="brand-title">IoT Dashboard</div></div>
+      <div class="sidebar-scroll">
+        <div class="search"><span><i class="fas fa-search"></i></span><input id="searchInput" placeholder="Search..." /></div>
+        <div class="section-label">Dashboards</div>
+        <button class="nav-item active" data-page="overview"><span class="nav-icon">▦</span> Overview</button>
+        <button class="nav-item" data-page="bluetooth"><span class="nav-icon">↯</span> Bluetooth</button>
+        <button class="nav-item" data-page="firebase"><span class="nav-icon">▤</span> Firebase</button>
+        <button class="nav-item" data-page="parameters"><span class="nav-icon">☷</span> Parameters</button>
+        <div class="section-label">Settings</div>
+        <button class="nav-item" data-page="activity"><span class="nav-icon">∿</span> Activity Log</button>
+        <button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span> Settings</button>
+        <button class="nav-item" data-page="help"><span class="nav-icon">?</span> Help Centre</button>
+      </div>
+      <div class="sidebar-footer"><div class="avatar">U</div><div class="footer-meta"><div class="name">User</div><div class="sub">Security monitoring interface</div></div></div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar"><div class="crumbs"><span>▦</span><span>Dashboards</span><span>/</span><strong id="crumbPage">Overview</strong></div><div class="top-right"><span id="dateLabel">-</span><span>🔔</span></div></div>
+      
+      <div class="content">
+        <section class="page active" id="page-overview">
+          <div class="page-title">Overview</div>
+          
+          <div class="grid" style="margin-bottom: 24px;">
+            <div class="card pad mid-card">
+                <div class="card-head"><div><div class="card-title">Bluetooth Link</div></div><div class="status-chip bad" id="btChip">Disconnected</div></div>
+                <button class="btn green" id="btnConnectBluetooth" style="width:100%; padding:14px 16px;"><i class="fab fa-bluetooth-b"></i> Hubungkan micro:bit</button>
+            </div>
+            <div class="card pad mid-card" style="border-color: #f97316;">
+                <div class="card-head"><div><div class="card-title" style="color:#f97316;">Firebase Uplink</div></div><div class="status-chip warn" id="fbChip">Not Connected</div></div>
+                <div class="stack">
+                    <input class="input" id="dbUrlOverview" placeholder="Database URL (https://...)" style="border-color:#f97316; color:#f97316;" />
+                    <button class="btn" id="btnConnectFirebaseOverview" style="width:100%; padding:14px 16px; border-color:#f97316; color:#f97316;"><i class="fas fa-cloud"></i> Sinkronkan DB</button>
+                </div>
+            </div>
+            <div class="card pad mid-card">
+                <div class="card-head"><div><div class="card-title">Database Path</div><div class="card-sub">Lokasi data di Firebase</div></div></div>
+                <input class="input" id="basePathOverview" value="iot/kelas8" placeholder="Misal: iot/kelas8" />
+            </div>
+          </div>
+
+          <div class="page-title" style="font-size: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Telemetry Sensors</div>
+          
+          <div class="grid" id="sensorGrid" style="margin-bottom: 24px;">
+            <div class="col-span-12 py-10 text-center text-[var(--muted)] w-full" style="grid-column: span 12; color: #8a9490;">
+                [ Hubungkan Database atau micro:bit untuk memuat Widget ]
+            </div>
+          </div>
+
+          <div class="page-title" style="font-size: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Control Interface</div>
+          
+          <div class="two-col">
+              <div class="card pad">
+                  <div class="card-head"><div><div class="card-title">Digital Switches (ON/OFF)</div></div></div>
+                  <div id="switchGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;"></div>
+              </div>
+              <div class="card pad">
+                  <div class="card-head"><div><div class="card-title">Analog Dimmers (Slider)</div></div></div>
+                  <div id="dimmerGrid" class="stack"></div>
+              </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-bluetooth">
+          <div class="page-title">Bluetooth</div>
+          <div class="two-col">
+            <div class="card pad">
+              <div class="card-head"><div><div class="card-title">Koneksi micro:bit</div><div class="card-sub">UART Service siap digunakan</div></div><div class="status-chip" id="btPageChip">Disconnected</div></div>
+              <div class="row" style="margin-bottom:12px;"><button class="btn green" id="btnConnectBluetooth2">Hubungkan</button><button class="btn ghost" id="btnDisconnectBluetooth" disabled>Putuskan</button></div>
+              <div class="device-mini"><div class="sub">UART Service UUID</div><div class="small">6e400001-b5a3-f393-e0a9-e50e24dcca9e</div><div class="sub">TX (Dari Microbit)</div><div class="small">6e400002-b5a3-f393-e0a9-e50e24dcca9e</div><div class="sub">RX (Ke Microbit)</div><div class="small">6e400003-b5a3-f393-e0a9-e50e24dcca9e</div></div>
+            </div>
+            <div class="card pad">
+              <div class="card-head"><div><div class="card-title">Kirim Data Manual</div><div class="card-sub">Bisa format JSON atau Teks murni</div></div></div>
+              <div class="stack">
+                <textarea class="textarea" id="quickJson" style="min-height: 100px;">lampu,1</textarea>
+                <div class="row"><button class="btn green" id="btnSendQuick">Kirim ke micro:bit</button></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-firebase">
+          <div class="page-title">Firebase</div>
+          <div class="two-col">
+            <div class="card pad" style="border-color:#f97316;">
+              <div class="card-head"><div><div class="card-title" style="color:#f97316;">Firebase Connector</div><div class="card-sub">Kirim data sensor ke Realtime Database</div></div><div class="status-chip warn" id="fbPageChip">Not Connected</div></div>
+              <div class="stack">
+                <div><div class="small muted" style="margin-bottom:6px;">API KEY</div><input class="input" id="apiKeyInput2" placeholder="AIzaSy..." style="border-color:#f97316; color:#f97316;" /></div>
+                <div><div class="small muted" style="margin-bottom:6px;">DATABASE URL</div><input class="input" id="dbUrlInput2" placeholder="https://your-project.firebaseio.com" style="border-color:#f97316; color:#f97316;" /></div>
+                <div class="row"><button class="btn" id="btnConnectFirebase2" style="border-color:#f97316; color:#f97316;">Hubungkan Firebase</button></div>
+              </div>
+            </div>
+            <div class="card pad">
+              <div class="card-head"><div><div class="card-title">Struktur Database</div><div class="card-sub">Data saat ini yang tersinkronisasi</div></div></div>
+              <div class="preview" id="firebasePayloadBox">{ }</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-parameters">
+          <div class="page-title">Widget Builder</div>
+          <div class="card pad" style="margin-bottom: 20px;">
+              <div class="card-head">
+                  <div><div class="card-title">Tambahkan Komponen Dashboard</div><div class="card-sub">Komponen akan otomatis muncul di Overview</div></div>
+                  <button class="btn red" id="btnCancelEdit" style="display:none; padding:6px 12px; font-size:10px;">Batal Edit</button>
+              </div>
+              <div class="row" style="align-items: flex-end;">
+                  <div style="flex: 1;"><div class="small muted mb-1">Nama Key (ex: lampu_teras)</div><input class="input" id="bKey" placeholder="Tanpa spasi"></div>
+                  <div style="flex: 1;"><div class="small muted mb-1">Tipe Widget</div>
+                      <select class="select" id="bType">
+                          <option value="sensor">Sensor Grafik (Analog)</option>
+                          <option value="switch">Switch / Saklar (0/1)</option>
+                          <option value="dimmer">Dimmer / Slider (0-1024)</option>
+                      </select>
+                  </div>
+                  <div style="flex: 0.5;"><div class="small muted mb-1">Satuan (Opt)</div><input class="input" id="bUnit" placeholder="°C, Lux"></div>
+                  <div style="flex: 0.5;"><div class="small muted mb-1">Max Value</div><input type="number" class="input" id="bMax" placeholder="100/1024"></div>
+                  <button class="btn green" id="btnSaveParam" style="height: 42px;">Simpan Widget</button>
+              </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-activity">
+          <div class="page-title">Activity Log</div>
+          <div class="card pad"><div class="row" style="justify-content:space-between; margin-bottom:12px;"><div class="muted small">Semua aktivitas koneksi dan kirim data</div><div class="page-nav-row"><button class="btn ghost" id="btnClearLog">Clear log</button></div></div><div class="activity-list" id="activityList"></div></div>
+        </section>
+
+        <section class="page" id="page-settings">
+          <div class="page-title">Settings</div>
+          <div class="subgrid-2">
+            <div class="card pad"><div class="card-head"><div><div class="card-title">App Settings</div><div class="card-sub">Tersimpan di browser</div></div></div><div class="stack"><label class="row"><input type="checkbox" id="autoSaveConfig" checked /> <span>Simpan konfigurasi otomatis</span></label></div></div>
+          </div>
+        </section>
+
+        <section class="page" id="page-help">
+          <div class="page-title">Help Centre</div>
+          <div class="subgrid-2">
+            <div class="card pad"><div class="card-head"><div><div class="card-title">Cara pakai (Siswa)</div></div></div><div class="preview" style="white-space:normal; color:var(--text);">1. Pastikan program di MakeCode micro:bit menggunakan blok "Bluetooth UART service".<br><br>2. Kirim data sensor dari micro:bit dengan format "NamaSensor:Nilai" (contoh: Sensor cahaya:1023). Dashboard akan otomatis membuat grafik!<br><br>3. Untuk menerima perintah dari web, pisahkan teks berdasarkan koma (,) di MakeCode.</div></div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <aside class="rightbar" style="padding:20px; overflow-y:auto; height:100%; border-left:1px solid rgba(255,255,255,.06);">
+      <div class="card pad" style="margin-bottom:18px;"><div class="card-head"><div><div class="card-title">System Logs</div></div><div class="status-chip ok">Live</div></div><div class="activity-list" id="rightActivityList"></div></div>
+      <div class="card pad" style="margin-bottom:18px;"><div class="card-head"><div><div class="card-title">Quick Actions</div></div></div><div class="stack"><button class="btn green" id="quickConnectBtn">Connect micro:bit</button></div></div>
+      <div class="card pad"><div class="card-head"><div><div class="card-title">Summary</div></div></div><div class="stack"><div class="device-mini"><div class="sub">Bluetooth</div><div class="big" id="summaryBt">Offline</div></div><div class="device-mini"><div class="sub">Firebase</div><div class="big" id="summaryFb">Offline</div></div><div class="device-mini"><div class="sub">Active Widgets</div><div class="big" id="summarySensors">0</div></div></div></div>
+    </aside>
+  </div>
+
+  <script type="module">
+    import { initializeApp, getApps, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getDatabase, ref, onValue, update, remove, set } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+    // --- UUID BLUETOOTH ---
+    const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const UART_TX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+    const UART_RX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+
+    const state = {
+      device: null, server: null, txChar: null, rxChar: null, bleConnected: false, bleBuffer: "",
+      db: null, fbConnected: false, unsubscribe: null, currentPath: "iot/kelas8",
+      currentData: {}, historyData: {}, editModeKey: null, logs: []
+    };
+
+    const $ = (id) => document.getElementById(id.replace('#', ''));
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+    function formatName(str) { return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); }
+    function nowTime() { return new Date().toLocaleTimeString("id-ID", { hour12: false }); }
+    function safeJsonParse(text) { try { return { ok: true, value: JSON.parse(text) }; } catch (e) { return { ok: false, error: e }; } }
+    
+    function addLog(title, detail) {
+      state.logs.unshift({ time: nowTime(), title, detail });
+      if (state.logs.length > 40) state.logs.pop();
+      renderLogs();
+    }
+    
+    function renderLogs() {
+      const allLogs = state.logs.slice(0, 10).map(l => `<div class="activity"><div><strong style="color:var(--green);">${l.title}</strong> — ${l.detail}</div><div class="time">${l.time}</div></div>`).join("");
+      if($("activityList")) $("activityList").innerHTML = allLogs || '<div class="activity">Belum ada log.</div>';
+      
+      const rightLogs = state.logs.slice(0, 4).map(l => `<div class="activity"><div><strong style="color:var(--green);">${l.title}</strong></div><div class="time" style="margin-top:2px;">${l.time} • ${l.detail}</div></div>`).join("");
+      if($("rightActivityList")) $("rightActivityList").innerHTML = rightLogs || '<div class="activity">Belum ada aktivitas</div>';
+    }
+
+    function setChip(el, text, kind) {
+      if (!el) return; el.textContent = text; el.className = `status-chip ${kind || ""}`.trim();
+    }
+
+    function updateStatusUI() {
+      const btText = state.bleConnected ? "Connected" : "Offline";
+      const fbText = state.fbConnected ? "Connected" : "Offline";
+      
+      setChip($("btChip"), btText, state.bleConnected ? "ok" : "bad");
+      setChip($("btPageChip"), btText, state.bleConnected ? "ok" : "bad");
+      setChip($("fbChip"), fbText, state.fbConnected ? "ok" : "warn");
+      setChip($("fbPageChip"), fbText, state.fbConnected ? "ok" : "warn");
+      
+      if($("summaryBt")) $("summaryBt").textContent = btText;
+      if($("summaryFb")) $("summaryFb").textContent = fbText;
+      if($("summarySensors")) $("summarySensors").textContent = Object.keys(state.currentData).length;
+      
+      const btns = ["btnConnectBluetooth", "btnConnectBluetooth2", "quickConnectBtn"];
+      btns.forEach(id => { if($(id)) $(id).disabled = state.bleConnected; });
+      if($("btnDisconnectBluetooth")) $("btnDisconnectBluetooth").disabled = !state.bleConnected;
+    }
+
+    // ==========================================
+    // 1. FIREBASE & DASHBOARD RENDERER
+    // ==========================================
+    async function connectFirebase() {
+      const apiKey = $("apiKeyInput2")?.value.trim() || "";
+      const dbUrl = $("dbUrlOverview")?.value.trim() || $("dbUrlInput2")?.value.trim() || "";
+      const path = $("basePathOverview")?.value.trim() || "iot/kelas8";
+
+      if (!dbUrl) { alert("Isi Database URL Firebase dulu!"); return; }
+      
+      try {
+        const config = { apiKey, databaseURL: dbUrl, projectId: dbUrl.split('//')[1]?.split('.')[0] || "iot-project" };
+        const apps = getApps();
+        if (apps.length > 0) await deleteApp(apps[0]); 
+        if (state.unsubscribe) state.unsubscribe();
+
+        const app = initializeApp(config);
+        state.db = getDatabase(app);
+        state.currentPath = path;
+
+        state.unsubscribe = onValue(ref(state.db, path), (snapshot) => {
+            state.currentData = snapshot.val() || {};
+            if($("firebasePayloadBox")) $("firebasePayloadBox").textContent = JSON.stringify(state.currentData, null, 2);
+            renderDashboard(state.currentData);
+        });
+
+        state.fbConnected = true; updateStatusUI(); persist();
+        addLog("Firebase", `Tersinkronisasi ke ${path}`);
+      } catch (e) {
+        addLog("Firebase Error", e.message);
+      }
+    }
+
+    function renderDashboard(data) {
+      const keys = Object.keys(data);
+      if (keys.length === 0) {
+          if($("sensorGrid")) $("sensorGrid").innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px;">[ Database Kosong. Tambahkan via Widget Builder ]</div>`;
+          if($("switchGrid")) $("switchGrid").innerHTML = ""; 
+          if($("dimmerGrid")) $("dimmerGrid").innerHTML = "";
+          return;
+      }
+
+      if($("sensorGrid") && $("sensorGrid").innerHTML.includes("Hubungkan Database")) $("sensorGrid").innerHTML = "";
+
+      const sensors = keys.filter(k => data[k].tipe === 'sensor' || !data[k].tipe);
+      const switches = keys.filter(k => data[k].tipe === 'switch');
+      const dimmers = keys.filter(k => data[k].tipe === 'dimmer');
+
+      renderSensors(sensors, data);
+      renderSwitches(switches, data);
+      renderDimmers(dimmers, data);
+    }
+
+    function renderSensors(keys, data) {
+      const grid = $("sensorGrid");
+      if(!grid) return;
+      Array.from(grid.children).forEach(el => { if(el.id && !keys.includes(el.id.replace('card-',''))) el.remove(); });
+
+      keys.forEach(key => {
+        const item = data[key];
+        let card = $(`card-${key}`);
+        
+        if(!state.historyData[key]) state.historyData[key] = [];
+        state.historyData[key].push(item.value);
+        if(state.historyData[key].length > 30) state.historyData[key].shift();
+
+        if (!card) {
+          const html = `
+            <div class="card pad overview-card" id="card-${key}">
+               <div class="widget-actions">
+                  <button class="btn-icon" style="color:var(--yellow);" onclick="window.editParam('${key}')"><i class="fas fa-edit"></i></button>
+                  <button class="btn-icon" style="color:var(--red);" onclick="window.deleteParam('${key}')"><i class="fas fa-trash"></i></button>
+               </div>
+               <div class="card-head">
+                  <div><div class="card-title">${formatName(key)}</div></div>
+                  <div class="badge-icon" style="color:var(--green)">∿</div>
+               </div>
+               <div class="stat" style="min-height: auto;">
+                  <div>
+                      <div class="stat-value" id="val-${key}">${item.value}</div>
+                      <div class="stat-label">${item.satuan || 'Value'}</div>
+                  </div>
+               </div>
+               <div class="mini-chart-box"><canvas id="chart-${key}"></canvas></div>
+            </div>`;
+          grid.insertAdjacentHTML('beforeend', html);
+        } else {
+          if($(`val-${key}`)) $(`val-${key}`).textContent = item.value;
+        }
+        drawCanvasChart(key, state.historyData[key], item.batas_atas || 100);
+      });
+    }
+
+    function renderSwitches(keys, data) {
+      const grid = $("switchGrid");
+      if(!grid) return;
+      grid.innerHTML = '';
+      keys.forEach(key => {
+        const item = data[key];
+        const isOn = (item.value == 1 || item.value === true);
+        
+        const html = `
+          <div class="card pad" style="text-align:center; position:relative; transition: all 0.3s; ${isOn ? 'border-color:var(--green); box-shadow:0 0 25px rgba(168,85,247,0.15); background: rgba(168,85,247,0.05)' : ''}">
+            <div class="widget-actions">
+                <button class="btn-icon" style="color:var(--yellow);" onclick="window.editParam('${key}')"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon" style="color:var(--red);" onclick="window.deleteParam('${key}')"><i class="fas fa-trash"></i></button>
+            </div>
+            <div style="font-size:32px; margin-bottom:10px; transition: color 0.3s; color:${isOn ? 'var(--green)' : 'var(--muted)'}"><i class="fas fa-power-off"></i></div>
+            <div class="card-title" style="margin-bottom:10px;">${formatName(key)}</div>
+            <button class="btn ${isOn ? 'green' : 'ghost'}" style="width:100%;" onclick="window.toggleSwitch('${key}', ${isOn ? 0 : 1})">${isOn ? 'ON' : 'OFF'}</button>
+          </div>
+        `;
+        grid.insertAdjacentHTML('beforeend', html);
+      });
+    }
+
+    function renderDimmers(keys, data) {
+      const grid = $("dimmerGrid");
+      if(!grid) return;
+      grid.innerHTML = '';
+      keys.forEach(key => {
+        const item = data[key];
+        const max = item.batas_atas || 1024;
+        
+        const html = `
+          <div class="card pad" style="position:relative;">
+            <div class="widget-actions">
+                <button class="btn-icon" style="color:var(--yellow);" onclick="window.editParam('${key}')"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon" style="color:var(--red);" onclick="window.deleteParam('${key}')"><i class="fas fa-trash"></i></button>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+               <div class="card-title">${formatName(key)}</div>
+               <div style="color:var(--green); font-weight:bold; font-size:18px; font-family:'Orbitron', monospace;">${item.value} <span style="color:var(--muted);font-size:10px;">/ ${max}</span></div>
+            </div>
+            <input type="range" min="0" max="${max}" value="${item.value}" onchange="window.changeDimmer('${key}', this.value)">
+          </div>
+        `;
+        grid.insertAdjacentHTML('beforeend', html);
+      });
+    }
+
+    function drawCanvasChart(key, values, maxConfig) {
+      const cvs = $(`chart-${key}`);
+      if(!cvs) return;
+      const ctx = cvs.getContext('2d');
+      const w = cvs.width, h = cvs.height;
+      ctx.clearRect(0,0,w,h);
+      if(values.length < 2) return;
+
+      const maxVal = Math.max(...values);
+      const max = Math.max(maxVal + (maxVal*0.1), maxConfig/2); 
+      const pad = 4;
+      const plotW = w - pad*2; const plotH = h - pad*2;
+      const step = plotW / (values.length - 1);
+
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = pad + i*step; const y = pad + plotH - ((v/max)*plotH);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.lineTo(pad+plotW, pad+plotH); ctx.lineTo(pad, pad+plotH);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(168,85,247,0.15)"; ctx.fill();
+
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = pad + i*step; const y = pad + plotH - ((v/max)*plotH);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // ==========================================
+    // 2. WIDGET BUILDER ACTIONS (DUAL PAYLOAD)
+    // ==========================================
+    window.toggleSwitch = async (key, val) => {
+      if (!state.db) { alert("Hubungkan Firebase!"); return; }
+      await update(ref(state.db, `${state.currentPath}/${key}`), { value: val });
+      await sendToMicrobit(key, val);
+    };
+
+    window.changeDimmer = async (key, val) => {
+      if (!state.db) return;
+      const num = parseInt(val);
+      await update(ref(state.db, `${state.currentPath}/${key}`), { value: num });
+      await sendToMicrobit(key, num);
+    };
+
+    window.deleteParam = async (key) => {
+      if(confirm(`Hapus Widget [${formatName(key)}]?`)) {
+        await remove(ref(state.db, `${state.currentPath}/${key}`));
+        if(state.historyData[key]) delete state.historyData[key];
+        addLog("Builder", `Deleted: ${key}`);
+      }
+    };
+
+    window.editParam = (key) => {
+      const item = state.currentData[key];
+      if(!item) return;
+      if($('bKey')) { $('bKey').value = key; $('bKey').readOnly = true; }
+      if($('bType')) $('bType').value = item.tipe || 'sensor';
+      if($('bUnit')) $('bUnit').value = item.satuan || '';
+      if($('bMax')) $('bMax').value = item.batas_atas || '';
+      
+      state.editModeKey = key;
+      if($('btnCancelEdit')) $('btnCancelEdit').style.display = 'inline-block';
+      if($('btnSaveParam')) $('btnSaveParam').innerText = 'Update Widget';
+      openPage("parameters"); 
+    };
+
+    if($('btnCancelEdit')) {
+        $('btnCancelEdit').onclick = () => {
+          if($('bKey')) { $('bKey').value = ''; $('bKey').readOnly = false; }
+          if($('bUnit')) $('bUnit').value = ''; 
+          if($('bMax')) $('bMax').value = '';
+          state.editModeKey = null;
+          $('btnCancelEdit').style.display = 'none';
+          if($('btnSaveParam')) $('btnSaveParam').innerText = 'Simpan Widget';
+        };
+    }
+
+    if($('btnSaveParam')) {
+        $('btnSaveParam').onclick = async () => {
+          if(!state.db) { alert("Konek Firebase dulu!"); return; }
+          let key = $('bKey')?.value.trim().replace(/\s+/g, '_').toLowerCase();
+          if(!key) return;
+
+          const payload = {
+            tipe: $('bType')?.value || "sensor",
+            satuan: $('bUnit')?.value.trim() || "",
+            batas_atas: parseInt($('bMax')?.value) || ($('bType')?.value === 'dimmer'? 1024 : 100),
+            value: state.editModeKey ? state.currentData[state.editModeKey].value : 0
+          };
+
+          try {
+            await set(ref(state.db, `${state.currentPath}/${key}`), payload);
+            addLog("Builder", `Saved Widget: ${key}`);
+            if($('btnCancelEdit')) $('btnCancelEdit').onclick(); 
+            openPage("overview"); 
+          } catch(e) { addLog("Builder Error", e.message); }
+        };
+    }
+
+    // ==========================================
+    // 3. BLUETOOTH & SMART LOGIC
+    // ==========================================
+    async function connectBluetooth() {
+      try {
+        if (!navigator.bluetooth) { alert("Browser tidak support Web Bluetooth!"); return; }
+        
+        state.device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: "BBC micro:bit" }],
+          optionalServices: [UART_SERVICE_UUID]
+        });
+        
+        state.device.addEventListener("gattserverdisconnected", () => {
+          state.bleConnected = false; updateStatusUI(); addLog("Bluetooth", "Terputus!");
+        });
+
+        const server = await state.device.gatt.connect();
+        const service = await server.getPrimaryService(UART_SERVICE_UUID);
+        
+        state.txChar = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
+        state.rxChar = await service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
+        
+        await state.txChar.startNotifications();
+        state.txChar.addEventListener("characteristicvaluechanged", handleIncomingData);
+        
+        state.bleConnected = true; updateStatusUI();
+        addLog("Bluetooth", `Terhubung ke Micro:bit`);
+      } catch (err) {
+        state.bleConnected = false; updateStatusUI();
+        addLog("Bluetooth Error", err.message);
+      }
+    }
+
+    function handleIncomingData(event) {
+      let arr = [];
+      for (let i = 0; i < event.target.value.byteLength; i++) arr.push(event.target.value.getUint8(i));
+      state.bleBuffer += String.fromCharCode.apply(null, arr);
+      const lines = state.bleBuffer.split('\n');
+      state.bleBuffer = lines.pop(); 
+      lines.forEach(line => {
+          const txt = line.trim();
+          if (txt) processMicrobitData(txt);
+      });
+    }
+
+    function processMicrobitData(dataStr) {
+      addLog("BLE RX", dataStr);
+      if (dataStr.includes(':')) {
+          const parts = dataStr.split(':');
+          let key = parts[0].trim().replace(/\s+/g, '_').toLowerCase();
+          const val = parseFloat(parts[1].trim());
+
+          if (key === "mode") key = "otomatis";
+
+          let autoType = "sensor"; 
+          if (key === "lampu" || key === "otomatis") autoType = "switch"; 
+          if (key === "kipas") autoType = "dimmer";
+
+          if (!isNaN(val)) {
+              if (state.db && state.currentPath) {
+                  if (state.currentData[key]) {
+                      update(ref(state.db, `${state.currentPath}/${key}`), { value: val });
+                  } else {
+                      addLog("System", `Auto-Create ${autoType}: ${key}`);
+                      set(ref(state.db, `${state.currentPath}/${key}`), { 
+                          tipe: autoType, value: val, satuan: "", batas_atas: autoType==="dimmer"?1024:100 
+                      });
+                  }
+              }
+          }
+      }
+    }
+
+    async function sendToMicrobit(key, value) {
+      if (!state.rxChar) return;
+      const textToSend = `${key},${value}\n`;
+      try {
+          await state.rxChar.writeValue(new TextEncoder().encode(textToSend));
+          addLog("BLE TX", textToSend.trim());
+      } catch (err) {
+          addLog("BLE TX Error", err.message);
+      }
+    }
+
+    // ==========================================
+    // 4. EVENTS & UTILS
+    // ==========================================
+    function persist() {
+      if (!$("autoSaveConfig")?.checked) return;
+      const config = {
+        apiKey: $("apiKeyInput2")?.value || "",
+        dbUrl: $("dbUrlOverview")?.value || $("dbUrlInput2")?.value || "",
+        path: $("basePathOverview")?.value || "iot/kelas8"
+      };
+      localStorage.setItem("microbit_iot_config", JSON.stringify(config));
+    }
+
+    function loadPersisted() {
+      try {
+        const raw = localStorage.getItem("microbit_iot_config");
+        if (!raw) return;
+        const cfg = JSON.parse(raw);
+        if ($("apiKeyInput2")) $("apiKeyInput2").value = cfg.apiKey || "";
+        if ($("dbUrlOverview")) $("dbUrlOverview").value = cfg.dbUrl || "";
+        if ($("dbUrlInput2")) $("dbUrlInput2").value = cfg.dbUrl || "";
+        if ($("basePathOverview")) $("basePathOverview").value = cfg.path || "iot/kelas8";
+      } catch (e) { console.error(e); }
+    }
+
+    function openPage(urlHash) {
+      location.hash = urlHash;
+      showPage(urlHash.replace("#", ""));
+    }
+
+    function showPage(page) {
+      $$(".page").forEach(p => p.classList.remove("active"));
+      const target = $(`page-${page}`) || $("page-overview");
+      if(target) target.classList.add("active");
+      
+      $$(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.page === page));
+      const titleMap = { overview:"Overview", bluetooth:"Bluetooth", firebase:"Firebase", parameters:"Parameters", activity:"Activity Log", settings:"Settings", help:"Help Centre" };
+      if($("crumbPage")) $("crumbPage").textContent = titleMap[page] || "Overview";
+    }
+
+    function wireEvents() {
+      $$(".nav-item").forEach(btn => btn.addEventListener("click", () => showPage(btn.dataset.page)));
+      
+      const bleBtns = ["btnConnectBluetooth", "btnConnectBluetooth2", "quickConnectBtn"];
+      bleBtns.forEach(id => { if($(id)) $(id).onclick = connectBluetooth; });
+      if($("btnDisconnectBluetooth")) $("btnDisconnectBluetooth").onclick = () => state.device?.gatt?.disconnect?.();
+      
+      const fbBtns = ["btnConnectFirebaseOverview", "btnConnectFirebase2"];
+      fbBtns.forEach(id => { if($(id)) $(id).onclick = connectFirebase; });
+      
+      if($("btnSendQuick")) {
+          $("btnSendQuick").onclick = async () => {
+             const txt = $("quickJson")?.value.trim() || "";
+             if (txt.includes(",")) {
+                 const parts = txt.split(",");
+                 await sendToMicrobit(parts[0].trim(), parseFloat(parts[1].trim()));
+             } else {
+                 if (state.rxChar) await state.rxChar.writeValue(new TextEncoder().encode(txt + '\n'));
+             }
+          };
+      }
+      
+      if($("btnClearLog")) $("btnClearLog").onclick = () => {
+          state.logs = []; renderLogs(); addLog("System", "Log dibersihkan.");
+      };
+      
+      ["dbUrlOverview", "basePathOverview", "apiKeyInput2", "dbUrlInput2"].forEach(id => {
+          if ($(id)) $(id).addEventListener("input", persist);
+      });
+      if ($("autoSaveConfig")) $("autoSaveConfig").addEventListener("change", persist);
+      
+      window.addEventListener("hashchange", () => {
+         const page = (location.hash || "#overview").replace("#", "");
+         showPage(["overview", "bluetooth", "firebase", "parameters", "activity", "settings", "help"].includes(page) ? page : "overview");
+      });
+    }
+
+    function init() {
+      const d = new Date();
+      if($("dateLabel")) $("dateLabel").textContent = d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      loadPersisted();
+      updateStatusUI();
+      wireEvents();
+      addLog("System", "Dashboard Edu Pro Siap.");
+      
+      if(location.hash) showPage(location.hash.replace("#", ""));
+    }
+
+    init();
+  </script>
+</body>
+</html>
