@@ -266,6 +266,30 @@
     ::-webkit-scrollbar-track { background: transparent; }
 
     /* RESPONSIVE LAYOUT - Kembali normal jika di layar kecil */
+
+    .terminal-card { background: linear-gradient(180deg, rgba(2, 6, 23, .92), rgba(9, 13, 26, .92)); border-color: rgba(168,85,247,.18); }
+    .terminal-window {
+      background: radial-gradient(circle at top left, rgba(168,85,247,.10), transparent 28%), rgba(2, 6, 23, .9);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 18px;
+      padding: 14px;
+      min-height: 220px;
+      max-height: 280px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: #dbe4ff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+    .terminal-line { white-space: pre-wrap; line-height: 1.55; margin-bottom: 6px; }
+    .terminal-line .ts { color: #94a3b8; }
+    .terminal-line .tag { color: #c084fc; }
+    .terminal-line .ok { color: #86efac; }
+    .terminal-line .warn { color: #fcd34d; }
+    .terminal-line .err { color: #fda4af; }
+
     @media (max-width: 1200px) {
       html, body { overflow-y: auto; height: auto; }
       .app { grid-template-columns:220px 1fr; grid-template-rows:auto auto; height: auto; overflow: visible;}
@@ -320,7 +344,14 @@
             <div class="card pad mid-card" style="border-color: #f97316;">
                 <div class="card-head"><div><div class="card-title" style="color:#f97316;">Firebase Uplink</div></div><div class="status-chip warn" id="fbChip">Not Connected</div></div>
                 <div class="stack">
-                    <input class="input" id="dbUrlOverview" placeholder="Database URL (https://...)" style="border-color:#f97316; color:#f97316;" />
+                    <div>
+                        <div class="small muted" style="margin-bottom:6px; color:#f97316;">API KEY FIREBASE</div>
+                        <input class="input" type="password" id="apiKeyOverview" placeholder="AIzaSy..." autocomplete="off" style="border-color:#f97316; color:#f97316;" />
+                    </div>
+                    <div>
+                        <div class="small muted" style="margin-bottom:6px; color:#f97316;">DATABASE URL</div>
+                        <input class="input" id="dbUrlOverview" placeholder="Database URL (https://...)" style="border-color:#f97316; color:#f97316;" />
+                    </div>
                     <button class="btn" id="btnConnectFirebaseOverview" style="width:100%; padding:14px 16px; border-color:#f97316; color:#f97316;"><i class="fas fa-cloud"></i> Sinkronkan DB</button>
                 </div>
             </div>
@@ -350,6 +381,21 @@
                   <div id="dimmerGrid" class="stack"></div>
               </div>
           </div>
+
+          <div class="card pad terminal-card" style="margin-top: 18px;">
+              <div class="card-head">
+                  <div>
+                      <div class="card-title">Terminal Log</div>
+                      <div class="card-sub">Output status koneksi dan perintah perangkat</div>
+                  </div>
+                  <div class="row">
+                      <button class="btn ghost" id="btnClearTerminal">Hapus Log</button>
+                  </div>
+              </div>
+              <div class="terminal-window" id="terminalOutput">
+                  <div class="terminal-line"><span class="ts">[--:--:--]</span> <span class="tag">&gt;</span> Menunggu instruksi...</div>
+              </div>
+          </div>
         </section>
 
         <section class="page" id="page-bluetooth">
@@ -376,7 +422,9 @@
             <div class="card pad" style="border-color:#f97316;">
               <div class="card-head"><div><div class="card-title" style="color:#f97316;">Firebase Connector</div><div class="card-sub">Kirim data sensor ke Realtime Database</div></div><div class="status-chip warn" id="fbPageChip">Not Connected</div></div>
               <div class="stack">
-                <div><div class="small muted" style="margin-bottom:6px;">API KEY</div><input class="input" id="apiKeyInput2" placeholder="AIzaSy..." style="border-color:#f97316; color:#f97316;" /></div>
+                <div class="preview" style="margin-top:0; white-space:normal; border-color: rgba(249, 115, 22, .22);">
+                  Pengisian <b>API KEY FIREBASE</b> ada di halaman <b>Overview</b>.
+                </div>
                 <div><div class="small muted" style="margin-bottom:6px;">DATABASE URL</div><input class="input" id="dbUrlInput2" placeholder="https://your-project.firebaseio.com" style="border-color:#f97316; color:#f97316;" /></div>
                 <div class="row"><button class="btn" id="btnConnectFirebase2" style="border-color:#f97316; color:#f97316;">Hubungkan Firebase</button></div>
               </div>
@@ -467,12 +515,54 @@
       renderLogs();
     }
     
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function renderTerminal() {
+      const box = $("terminalOutput");
+      if (!box) return;
+
+      const snap = {
+        top: box.scrollTop,
+        height: box.scrollHeight,
+        client: box.clientHeight,
+        atBottom: (box.scrollHeight - box.scrollTop - box.clientHeight) < 24
+      };
+
+      if (!state.logs.length) {
+        box.innerHTML = '<div class="terminal-line"><span class="ts">[--:--:--]</span> <span class="tag">&gt;</span> Menunggu instruksi...</div>';
+        return;
+      }
+
+      box.innerHTML = state.logs.map(l => {
+        const title = String(l.title || 'SYSTEM').toUpperCase();
+        let cls = 'ok';
+        if (title.includes('ERROR') || title.includes('FAILED')) cls = 'err';
+        else if (title.includes('WARN')) cls = 'warn';
+        return `<div class="terminal-line"><span class="ts">[${l.time}]</span> <span class="tag">&gt;</span> <span class="${cls}">${title}</span> ${escapeHtml(l.detail)}</div>`;
+      }).join('');
+
+      if (snap.atBottom) {
+        box.scrollTop = box.scrollHeight;
+      } else {
+        const delta = box.scrollHeight - snap.height;
+        box.scrollTop = Math.max(0, snap.top + delta);
+      }
+    }
+
     function renderLogs() {
       const allLogs = state.logs.slice(0, 10).map(l => `<div class="activity"><div><strong style="color:var(--green);">${l.title}</strong> — ${l.detail}</div><div class="time">${l.time}</div></div>`).join("");
       if($("activityList")) $("activityList").innerHTML = allLogs || '<div class="activity">Belum ada log.</div>';
-      
+
       const rightLogs = state.logs.slice(0, 4).map(l => `<div class="activity"><div><strong style="color:var(--green);">${l.title}</strong></div><div class="time" style="margin-top:2px;">${l.time} • ${l.detail}</div></div>`).join("");
       if($("rightActivityList")) $("rightActivityList").innerHTML = rightLogs || '<div class="activity">Belum ada aktivitas</div>';
+      renderTerminal();
     }
 
     function setChip(el, text, kind) {
@@ -501,7 +591,7 @@
     // 1. FIREBASE & DASHBOARD RENDERER
     // ==========================================
     async function connectFirebase() {
-      const apiKey = $("apiKeyInput2")?.value.trim() || "";
+      const apiKey = $("apiKeyOverview")?.value.trim() || "";
       const dbUrl = $("dbUrlOverview")?.value.trim() || $("dbUrlInput2")?.value.trim() || "";
       const path = $("basePathOverview")?.value.trim() || "iot/kelas8";
 
@@ -830,7 +920,7 @@
     function persist() {
       if (!$("autoSaveConfig")?.checked) return;
       const config = {
-        apiKey: $("apiKeyInput2")?.value || "",
+        apiKey: $("apiKeyOverview")?.value || "",
         dbUrl: $("dbUrlOverview")?.value || $("dbUrlInput2")?.value || "",
         path: $("basePathOverview")?.value || "iot/kelas8"
       };
@@ -842,8 +932,8 @@
         const raw = localStorage.getItem("microbit_iot_config");
         if (!raw) return;
         const cfg = JSON.parse(raw);
-        if ($("apiKeyInput2")) $("apiKeyInput2").value = cfg.apiKey || "";
-        if ($("dbUrlOverview")) $("dbUrlOverview").value = cfg.dbUrl || "";
+        if ($("apiKeyOverview")) $("apiKeyOverview").value = cfg.apiKey || "";
+                if ($("dbUrlOverview")) $("dbUrlOverview").value = cfg.dbUrl || "";
         if ($("dbUrlInput2")) $("dbUrlInput2").value = cfg.dbUrl || "";
         if ($("basePathOverview")) $("basePathOverview").value = cfg.path || "iot/kelas8";
       } catch (e) { console.error(e); }
@@ -889,8 +979,12 @@
       if($("btnClearLog")) $("btnClearLog").onclick = () => {
           state.logs = []; renderLogs(); addLog("System", "Log dibersihkan.");
       };
+      if($("btnClearTerminal")) $("btnClearTerminal").onclick = () => {
+          state.logs = [];
+          renderLogs();
+      };
       
-      ["dbUrlOverview", "basePathOverview", "apiKeyInput2", "dbUrlInput2"].forEach(id => {
+      ["apiKeyOverview", "dbUrlOverview", "basePathOverview", "dbUrlInput2"].forEach(id => {
           if ($(id)) $(id).addEventListener("input", persist);
       });
       if ($("autoSaveConfig")) $("autoSaveConfig").addEventListener("change", persist);
